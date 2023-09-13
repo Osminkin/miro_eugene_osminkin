@@ -1,0 +1,123 @@
+version: 2
+
+models:
+  base:
+
+    - name: stg_sessions
+        description: 'A model containing user session data.'
+      columns:
+        - name: user_id
+          description: 'Unique user identifier.'
+          tests:
+            - not_null
+            - unique
+        - name: time_started
+          description: 'Time of the session in UTC timezone.'
+          tests:
+            - not_null
+        - name: is_paid
+          description: 'Is session paid or not (boolean).'
+          tests:
+            - not_null
+        - name: medium
+          description: 'The source of user sessions, indicating whether the traffic is from paid advertising, organic search, direct access, or other methods.'
+          tests:
+            - not_null
+
+    - name: stg_conversions
+        description: 'A model containing data on user registration.'
+      columns:
+        - name: user_id
+          description: 'Unique identifier for the session.'
+          tests:
+            - not_null
+            - unique
+        - name: registration_time
+          description: 'Time of the user registration in UTC timezone.'
+          tests:
+            - not_null
+
+  integrated:
+
+    - name: int_sessions_users
+        description: 'A model that joins session and conversion data to calculate key user interaction metrics.'
+      columns:
+        - name: user_id
+          description: 'Unique user identifier.'
+          tests:
+            - not_null
+            - unique
+        - name: time_started
+          description: 'Time of the session in UTC timezone.'
+        - name: is_paid
+          description: 'Is session paid or not (boolean).'
+        - name: medium
+          description: 'The source of user sessions, indicating whether the traffic is from paid advertising, organic search, direct access, or other methods.'
+        - name: registration_time
+          description: 'Time of the user registration in UTC timezone.'
+        - name: duration_to_registration_ms
+          description: 'Duration between the session start time and user registration time, in milliseconds.'
+        - name: duration_to_registration_hr
+          description: 'Duration between the session start time and user registration time, in hours.'
+        - name: is_within_life_span
+          description: 'Boolean flag indicating if the session lies within a time frame defined as the "life span" based on medium and duration criteria.'
+        - name: is_live_session
+          description: 'Boolean flag indicating whether the session is considered "live", based on the medium type.'
+        - name: is_before_registration
+          description: 'Boolean flag indicating whether the session occurred before the user registration time.'
+
+    - name: int_acquisitions_users
+      description: 'A model that aggregates user session information to determine the acquisition channel, first interaction times, and mediums.'
+      columns:
+        - name: user_id
+          description: 'The unique identifier for each user, sourced from the int_sessions_users intermediate table.'
+          tests:
+            - not_null
+            - unique
+        - name: registration_time
+          description: 'The time the user registered, in UTC.'
+        - name: first_paid_time
+          description: 'The first time the user had a paid session meeting specific conditions (within life span, live session, before registration).'
+        - name: first_paid_medium
+          description: 'The medium associated with the first paid session for the user that meets the specified conditions.'
+        - name: first_organic_time
+          description: 'The first time the user had an organic (non-paid) session meeting specific conditions (within life span, live session, before registration).'
+        - name: first_organic_medium
+          description: 'The medium associated with the first organic session for the user that meets the specified conditions.'
+        - name: first_invites_time
+          description: 'The first time the user came in through an "INVITES" medium before registration.'
+        - name: first_direct_time
+          description: 'The first time the user came in through a "DIRECT" medium before registration.'
+        - name: first_other_time
+          description: 'The first time the user came in through an "OTHER" medium before registration.'
+        - name: acquisition_channel
+          description: 'The channel through which the user was acquired.'
+          tests:
+            - not_null
+
+  reporting:
+  
+  - name: rpt_monthly_acquisition_channels
+    description: 'A model that aggregates the user data on a monthly basis and groups them by their acquisition channels. It provides insights into how many distinct users are acquired through each channel every month.'
+    columns:
+      - name: date_month
+        description: 'The month and year when the user registered, truncated to the first day of the month. Represents the period of aggregation.'
+        tests:
+          - not_null
+          - unique
+      - name: acquisition_channel
+        description: 'The channel through which the user was acquired. This could be "DIRECT", "INVITES", "OTHER", etc.'
+        tests:
+          - not_null
+      - name: user_count
+        description: 'The count of distinct users who were acquired through each channel during the given month.'
+        tests:
+          - not_null
+
+sources:
+  - name: src_db
+    database: src_db
+    schema: src_schema
+    tables:
+      - name: sessions
+      - name: conversions
